@@ -1,16 +1,34 @@
 from solution_cache import SolutionCache
 from task_cache import TaskCache
 from collections import defaultdict
+from conf_krestiki import CENTER_EXTRA_BONUS
 import codecs
 
 
 def calculate_points(player, tour, solution_cache: SolutionCache, tasks_cache: TaskCache):
     # player <=> user_id
     points = 0
+    mask = [[0, 0, 0, 0, 0] for i in range(5)]
+    theme_mask = {}
+    i = 0
+    for theme in tasks_cache.tours[tour]:
+        theme_mask[theme] = i
+        i += 1
     for sol in solution_cache.solution_storage:
-        if sol[0] == player:
+        if sol[0] == str(player):
             if tasks_cache.check_task(tour, sol[1], sol[2], sol[3]):
-                points += int(sol[2]) * 10
+                mask[theme_mask[sol[1]]][int(sol[2]) - 1] = 1
+            else:
+                mask[theme_mask[sol[1]]][int(sol[2]) - 1] = -1
+    
+    for x in range(5):
+        for y in range(5):
+            if (mask[x][y] == 1):
+                for i in range(-1, 2):
+                    for j in range(-1, 2):
+                        if x + i >= 0 and x + i < 5 and y + j >= 0 and y + j < 5 and i * j == 0:
+                            points += (mask[x + i][y + j] == 1)
+                points += CENTER_EXTRA_BONUS * (x == 2 and y == 2 and mask[x][y] == 1)
     return (True, f'Ваше число очков: {points}')
 
 

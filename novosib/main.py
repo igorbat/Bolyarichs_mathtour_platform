@@ -3,6 +3,7 @@ import discord
 from secret import TOKEN, ADMINS, ADMIN_CHANNEL, PUBLIC_CHANNEL, HI_CHANNEL
 from discord.ext import commands
 
+from scripts.table_from_cache import table_from_cache
 from util import calculate_points, generate_html, generate_html_bonuses
 from solution_cache import SolutionCache
 from player_cache import PlayerCache
@@ -79,8 +80,8 @@ async def changetour(ctx):
         await ctx.send(msg)
         return
     ok, msg1, msg2 = players.admin_change_tour(*parts)
-    print(msg)
-    await ctx.send(msg)
+    print(msg1)
+    await ctx.send(msg2)
     if ok:
         await bot.get_channel(PUBLIC_CHANNEL).send(msg2)
 
@@ -131,6 +132,26 @@ async def super_res(ctx):
     print(ctx.author.id, ctx.author.name, ctx.message.content)
     generate_html_bonuses(solutions, tasks, players)
     await ctx.send('Сгенерены super-html-ки')
+
+################################### Всякие таблички
+@bot.command(name='table_res', help='Таблица с результатами для игрока')
+async def table_res(ctx: commands.Context):
+    print(ctx.author.id, ctx.author.name, ctx.message.content)
+    if not players.players_storage[str(ctx.author.id)].allowed:
+        msg = "Вы еще не зарегистрированы"
+        print(msg)
+        await ctx.send(msg)
+        return
+    ok, path_to_pic, table_name, player_points = table_from_cache(ctx.author.id, players, solutions, tasks)
+    if ok:
+        file = discord.File(path_to_pic, filename=table_name)
+        embed = discord.Embed(title='Таблица с результатами')
+        embed.set_image(url="attachment://" + table_name)
+        embed.add_field(name='Всего баллов:', value=player_points)
+        await ctx.send(file=file, embed=embed)
+    else:
+        await ctx.send('возникла ошибка при создании таблички')
+
 ################################### ИГРОВОЙ ПРОЦЕСС
 @bot.command(name='solve', help='Отправить решение в виде "solve ТЕМА ЗАДАЧА ОТВЕТ"')
 async def solve(ctx):
@@ -158,9 +179,6 @@ async def solve(ctx):
             theme_count += 1
     if theme_count + 1 > int(parts[1]):
         await ctx.send("Вы уже отправляли данную задачу")
-        return
-    elif theme_count + 1 < int(parts[1]):
-        await ctx.send("Вы ещё не отправили прошлые задачи")
         return
 
     ok, msg1 = solutions.new_solution(str(ctx.author.id), *parts)
